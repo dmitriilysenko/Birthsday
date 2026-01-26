@@ -1,0 +1,10 @@
+# Для HTML/CSS/JS — всегда LF
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Для Python — LF
+*.py text eol=lf
+
+# Для Windows‑файлов (если нужно) — CRLF
+*.bat text eol=crlf
