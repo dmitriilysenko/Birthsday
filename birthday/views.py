@@ -3,6 +3,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 
 
 from .forms import BirthdayForm
@@ -19,17 +20,28 @@ class BirthdayFormMixin:
     template_name = 'birthday/birthday.html'
 
 
+class OnlyAuthorMixin(UserPassesTestMixin):
+
+    def test_func(self):
+        object = self.get_object()
+        return object.author == self.request.user 
+
+
 class BirthdayCreateView(BirthdayMixin, LoginRequiredMixin, BirthdayFormMixin,
                          CreateView):
-    pass
+    def form_valid(self, form):
+        # Присвоить полю author объект пользователя из запроса.
+        form.instance.author = self.request.user
+        # Продолжить валидацию, описанную в форме.
+        return super().form_valid(form)
 
 
-class BirthdayUpdateView(BirthdayMixin, LoginRequiredMixin, BirthdayFormMixin,
+class BirthdayUpdateView(BirthdayMixin, OnlyAuthorMixin, BirthdayFormMixin,
                          UpdateView):
     pass
 
 
-class BirthdayDeleteView(BirthdayMixin, LoginRequiredMixin, DeleteView):
+class BirthdayDeleteView(BirthdayMixin, OnlyAuthorMixin, DeleteView):
     pass
 
 
