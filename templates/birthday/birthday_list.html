@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% for birthday in page_obj %}
+  {% for birthday in object_list %}
     <div class="row"> <!-- Обернём каждую запись в тег div -->
       <div class="col-2">
         {% if birthday.image %}
@@ -11,7 +11,7 @@
       </div>
       <div class="col-10">  
         <div>
-          {{ birthday.first_name }} {{ birthday.last_name }} - {{ birthday.birthday }}
+          {{ birthday.id }}. {{ birthday.first_name }} {{ birthday.last_name }} - {{ birthday.birthday }}
         </div>
           {% if birthday.author == user %}
             <div>
