@@ -1,41 +1,29 @@
 from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView
 )
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.mixins import UserPassesTestMixin
+# from django.contrib.auth.mixins import UserPassesTestMixin
 
 from .forms import BirthdayForm, CongratulationForm
 from .models import Birthday, Congratulation
 from .utils import calculate_birthday_countdown
 
 
-class BirthdayMixin:
+class BirthdayListView(ListView):
     model = Birthday
-    success_url = reverse_lazy('birthday:list')
+    ordering = 'id'
+    paginate_by = 5
 
 
-class BirthdayFormMixin:
+class BirthdayCreateView(LoginRequiredMixin, CreateView):
+    model = Birthday
     form_class = BirthdayForm
-    template_name = 'birthday/birthday.html'
 
-
-class OnlyAuthorMixin(UserPassesTestMixin):
-
-    def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user 
-
-
-class BirthdayCreateView(BirthdayMixin, LoginRequiredMixin, BirthdayFormMixin,
-                         CreateView):
     def form_valid(self, form):
-        # Присвоить полю author объект пользователя из запроса.
         form.instance.author = self.request.user
-        # Продолжить валидацию, описанную в форме.
         return super().form_valid(form)
 
 
@@ -50,30 +38,26 @@ class BirthdayDetailView(DetailView):
             # Дату рождения берём из объекта в словаре context:
             self.object.birthday
         )
+        # Записываем в переменную form пустой объект формы.
+        context['form'] = CongratulationForm()
+        # Запрашиваем все поздравления для выбранного дня рождения.
+        context['congratulations'] = (
+            # Дополнительно подгружаем авторов комментариев,
+            # чтобы избежать множества запросов к БД.
+            self.object.congratulations.select_related('author')
+        )
         # Возвращаем словарь контекста.
         return context
 
 
-class BirthdayUpdateView(BirthdayMixin, OnlyAuthorMixin, BirthdayFormMixin,
-                         UpdateView):
-    pass
-
-
-class BirthdayDeleteView(BirthdayMixin, OnlyAuthorMixin, DeleteView):
-    pass
-
-
-class BirthdayListView(ListView):
+class BirthdayUpdateView(UpdateView):
     model = Birthday
-    # ...сортировку, которая будет применена при выводе списка объектов:
-    ordering = 'id'
-    # ...и даже настройки пагинации:
-    paginate_by = 5
+    form_class = BirthdayForm
 
 
-@login_required
-def simple_view(request):
-    return HttpResponse('Страница для залогиненных пользователей!')
+class BirthdayDeleteView(DeleteView):
+    model = Birthday
+    success_url = reverse_lazy('birthday:list')
 
 
 @login_required
@@ -93,3 +77,27 @@ def add_comment(request, pk):
         congratulation.save()
     # Перенаправляем пользователя назад, на страницу дня рождения.
     return redirect('birthday:detail', pk=pk)
+
+
+class CongratulationCreateView(LoginRequiredMixin, CreateView):
+    ''' В случае использования этого класса вместо
+    add_comment необходимо поменять маршрут'''
+
+    birthday = None
+    model = Congratulation
+    form_class = CongratulationForm
+
+    # Переопределяем dispatch()
+    def dispatch(self, request, *args, **kwargs):
+        self.birthday = get_object_or_404(Birthday, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    # Переопределяем form_valid()
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        form.instance.birthday = self.birthday
+        return super().form_valid(form)
+
+    # Переопределяем get_success_url()
+    def get_success_url(self):
+        return reverse('birthday:detail', kwargs={'pk': self.birthday.pk})
