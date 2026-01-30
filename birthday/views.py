@@ -87,17 +87,24 @@ class CongratulationCreateView(LoginRequiredMixin, CreateView):
     model = Congratulation
     form_class = CongratulationForm
 
-    # Переопределяем dispatch()
+    # Переопределяем dispatch() - метод проверки наличия объекта с заданным pk
+    # При наличии такового, он присваивается текущему объекту класса
     def dispatch(self, request, *args, **kwargs):
         self.birthday = get_object_or_404(Birthday, pk=kwargs['pk'])
         return super().dispatch(request, *args, **kwargs)
 
-    # Переопределяем form_valid()
+    # Переопределяем form_valid() - присваиваются значения
+    # скрытых для юзера полей
     def form_valid(self, form):
         form.instance.author = self.request.user
         form.instance.birthday = self.birthday
         return super().form_valid(form)
 
     # Переопределяем get_success_url()
+    # После отправки формы с поздравлением надо перенаправить пользователя
+    # на страницу записи. Это делается с помощью метода get_success_url().
+    # В нём применяется функция reverse(), которая из имени маршрута и нужных
+    # аргументов собирает строку с адресом;
+    # это аналог тега {% url "birthday:detail" pk %}, но только в Python-коде.
     def get_success_url(self):
         return reverse('birthday:detail', kwargs={'pk': self.birthday.pk})
